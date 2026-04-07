@@ -1,48 +1,88 @@
-# SUPERACE QA Test Configuration
+"""
+SUPERACE QA Configuration
+Edit these values to match your environment.
+"""
 
-BASE_URL = "https://dev-superace-original-api.fuyuit.tw"
-GAME_URL = "https://dev-superace-original.fuyuit.tw"
+# ── API ──────────────────────────────────────────────────────────────
+BASE_URL   = "https://dev-superace-original-api.fuyuit.tw"
+GAME_URL   = "https://dev-superace-original.fuyuit.tw/?ssoKey=test002"
+SSO_KEY    = "test002"
+SSO_KEYS   = ["test001", "test002", "test003"]  # all available test accounts
+DEFAULT_BET = 1.2   # must be from the server's betList
+# betList from /sso/login: [0.6, 1.2, 3, 6, 9, 15, 30, 45, 60, 90, 120, 300, 600, 888, 960]
+BET_LIST    = [0.6, 1.2, 3, 6, 9, 15, 30, 45, 60, 90, 120, 300, 600, 888, 960]
 
-SSO_KEYS = ["test002"]
-SSO_KEY  = SSO_KEYS[0]
+# ── Board ─────────────────────────────────────────────────────────────
+REELS = 5
+ROWS  = 4
 
-BET         = 1.2   # standard test bet (minimum valid value)
-INVALID_BET = 1.0   # BUG-005: defaultBet:1 is NOT in betList
+# ── Symbols ──────────────────────────────────────────────────────────
+EMPTY        = 0
+BIG_JOKER    = 10
+LITTLE_JOKER = 11
+SCATTER      = 9    # ← was 12 (BUG-NEW-002 root cause; confirmed from office version)
+# Gold symbols = base symbol + 100  (101=Gold_Clubs … 108=Gold_Ace)
+WILDS        = {BIG_JOKER, LITTLE_JOKER}          # for test_stats.py compatibility
+GOLD_SYMBOLS = set(range(101, 109))               # 101-108
+GOLD_REELS   = {1, 2, 3}                          # 0-indexed (same as GOLD_ALLOWED_REELS)
 
-# ── Paytable (multiplier of bet) ──────────────────────────────────────────────
-PAYTABLE = {
-    8: {3: 0.5,  4: 1.5,  5: 2.5 },  # Ace
-    7: {3: 0.4,  4: 1.2,  5: 2.0 },  # King
-    6: {3: 0.3,  4: 0.9,  5: 1.5 },  # Queen
-    5: {3: 0.2,  4: 0.6,  5: 1.0 },  # Jack
-    3: {3: 0.1,  4: 0.3,  5: 0.5 },  # Spades
-    4: {3: 0.1,  4: 0.3,  5: 0.5 },  # Hearts
-    1: {3: 0.05, 4: 0.15, 5: 0.25},  # Diamonds
-    2: {3: 0.05, 4: 0.15, 5: 0.25},  # Clubs
+# ── Paytable (values × 100, divide by 100 for actual ratio) ──────────
+PAYTABLE_X100 = {
+    8: {3: 50,  4: 150, 5: 250},  # Ace
+    7: {3: 40,  4: 120, 5: 200},  # King
+    6: {3: 30,  4:  90, 5: 150},  # Queen
+    5: {3: 20,  4:  60, 5: 100},  # Jack
+    4: {3: 10,  4:  30, 5:  50},  # Spades
+    3: {3: 10,  4:  30, 5:  50},  # Hearts
+    2: {3:  5,  4:  15, 5:  25},  # Diamonds
+    1: {3:  5,  4:  15, 5:  25},  # Clubs
 }
 
-# ── Multipliers ───────────────────────────────────────────────────────────────
-MG_MULTIPLIERS = [1, 2, 3, 5]   # cascade index 0,1,2,3+
+# ── Multipliers (index = cascade number, last value repeats) ─────────
+MG_MULTIPLIERS = [1, 2, 3, 5]
 FG_MULTIPLIERS = [2, 4, 6, 10]
 
-# ── Symbol codes ──────────────────────────────────────────────────────────────
-SCATTER      = 9
-WILDS        = {10, 11}              # 10=BigJoker, 11=LittleJoker
-GOLD_SYMBOLS = set(range(101, 109))  # 101-108
-GOLD_REELS   = {1, 2, 3}            # 0-indexed (reels 2,3,4 in 1-indexed)
-
-# ── Free Game ─────────────────────────────────────────────────────────────────
+# ── Free Game ─────────────────────────────────────────────────────────
 FG_INITIAL_SPINS   = 10
 FG_RETRIGGER_SPINS = 5
-FG_SEARCH_MAX_SPINS = 200  # max spins to search for FG trigger
+FG_TRIGGER_SCATTERS = 3
 
-# ── Statistical test thresholds (used in test_stats.py) ───────────────────────
-GOLDEN_RATE         = 0.05   # ~5% observed per cell in gold reels
-BIG_JOKER_RATE      = 0.15   # ~15% of gold conversions → BigJoker (observed)
-SCATTER_RATE        = 0.03   # ~3% per cell (spec target)
-FG_TRIGGER_RATE_MIN = 0.005  # minimum 0.5% FG trigger rate expected
+# ── Gold reel constraint (0-indexed) ─────────────────────────────────
+GOLD_ALLOWED_REELS   = [1, 2, 3]   # reels 2,3,4 in 1-indexed (game spec)
+GOLD_FORBIDDEN_REELS = [0, 4]
 
-RTP_MIN = 0.40   # generous lower bound (small sample, high variance)
-RTP_MAX = 1.20   # generous upper bound
+# ── Slot Config (mirrors backend config.ts) ───────────────────────────
+# Updated 2026-04-07 after git pull (commit 6f2652f)
+GOLDEN_RATE   = 0.05   # was 0.18 in old version
+BIG_JOKER_RATE = 0.15  # was 0.25 in old version
+# BigJoker copy count: min 2, max 5 (cloneWeights: [2,3,4,5])
+BIG_JOKER_COPY_MIN = 2
+BIG_JOKER_COPY_MAX = 5
 
-STAT_SPIN_COUNT = 100  # spins for statistical tests
+# ── Error Codes ───────────────────────────────────────────────────────
+ERR_OK            = 0
+ERR_INSUFFICIENT  = 2
+ERR_TOKEN_INVALID = 4
+ERR_TOKEN_EXPIRED = 6
+ERR_IN_PROGRESS   = 15
+
+# ⚠️  Known Issue: invalid token sometimes returns ERR_INSUFFICIENT (2)
+#     instead of ERR_TOKEN_INVALID (4) / ERR_TOKEN_EXPIRED (6).
+#     Root cause: token lookup failure falls through to wrong error path.
+#     Filed as BUG-001 — see references/known-issues.md
+ERR_TOKEN_ANY = [ERR_TOKEN_INVALID, ERR_TOKEN_EXPIRED, ERR_INSUFFICIENT]
+
+# ── Test Settings ─────────────────────────────────────────────────────
+WIN_TOLERANCE       = 0.02   # max acceptable diff in win amount (float precision)
+STAT_SAMPLE_SIZE    = 100    # spins for distribution tests
+STAT_SPIN_COUNT     = 100    # alias for test_stats.py compatibility
+FG_SEARCH_MAX_SPINS = 200    # max spins to search for a free-game trigger
+REQUEST_DELAY_S     = 0.1    # seconds between requests
+
+# ── test_stats.py aliases ─────────────────────────────────────────────
+BET         = DEFAULT_BET   # standard test bet
+INVALID_BET = 1.0           # BUG-005: defaultBet:1 not in betList
+SCATTER_RATE        = 0.03
+FG_TRIGGER_RATE_MIN = 0.005
+RTP_MIN             = 0.40
+RTP_MAX             = 1.20
