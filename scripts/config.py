@@ -20,7 +20,7 @@ ROWS  = 4
 EMPTY        = 0
 BIG_JOKER    = 10
 LITTLE_JOKER = 11
-SCATTER      = 9    # ← was 12 (BUG-NEW-002 root cause; confirmed from office version)
+SCATTER      = 12   # confirmed from backend symbols.ts: symbol.Scatter = 12
 # Gold symbols = base symbol + 100  (101=Gold_Clubs … 108=Gold_Ace)
 WILDS        = {BIG_JOKER, LITTLE_JOKER}          # for test_stats.py compatibility
 GOLD_SYMBOLS = set(range(101, 109))               # 101-108
