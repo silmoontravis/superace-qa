@@ -217,8 +217,12 @@ class TestSpinStructure(unittest.TestCase):
         self.assertGreaterEqual(self.slot["totalWin"], 0)
 
     def test_fg_table_win_same_length(self):
-        self.assertEqual(len(self.pt["fgTable"]), len(self.pt["fgWin"]),
-                         "fgTable and fgWin length mismatch")
+        # fgWin is flat (one entry per cascade across ALL FG spins)
+        # fgTable is nested (one entry per FG spin, each containing N cascades)
+        # So len(fgWin) >= len(fgTable) — they are NOT equal when any FG spin has >1 cascade.
+        # See also: TestMGCompletesBeforeFG::test_fg_table_fgwin_parallel
+        self.assertGreaterEqual(len(self.pt["fgWin"]), len(self.pt["fgTable"]),
+                                "fgWin must have >= entries as fgTable (flat vs nested)")
 
 
 # ════════════════════════════════════════════════════════════════════
