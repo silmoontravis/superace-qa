@@ -46,6 +46,15 @@ class GameClient:
         r.raise_for_status()
         return r.json()
 
+    def buy_free_spin(self, bet: float = DEFAULT_BET) -> Dict:
+        r = self.session.post(f"{BASE_URL}/buyFreeSpin",
+                              params={"bet": bet, "token": self.token})
+        r.raise_for_status()
+        js = r.json()
+        if js.get("error") == ERR_OK:
+            self.coin = js["data"]["slotData"].get("afterCoin", self.coin)
+        return js
+
     def keep_alive(self) -> Dict:
         r = self.session.post(f"{BASE_URL}/keepAlive",
                               params={"token": self.token})
@@ -428,6 +437,11 @@ class TestFreeGameMechanics(unittest.TestCase):
         cls.fg_spin = next(
             (s for s in cls.spins if get_fg_flag(s["paytable"])), None
         )
+        # Fallback: use buyFreeSpin to guarantee an FG-containing spin
+        if cls.fg_spin is None:
+            js = cls.c.buy_free_spin()
+            if js.get("error") == ERR_OK:
+                cls.fg_spin = js["data"]["slotData"]
 
     def test_has_free_game_is_always_bool(self):
         for s in self.spins:
@@ -759,8 +773,8 @@ class TestGoldToJokerConversion(unittest.TestCase):
     def setUpClass(cls):
         cls.c = GameClient()
         cls.c.login()
-        # Need multi-cascade spins with gold involved — collect more spins
-        cls.spins = spin_n(cls.c, 60)
+        # Need multi-cascade spins with gold involved — 200 spins for reliable gold events
+        cls.spins = spin_n(cls.c, 200)
         # Pre-filter spins with at least 2 cascades (consecutive grids)
         cls.multi_cascade = [
             s for s in cls.spins
