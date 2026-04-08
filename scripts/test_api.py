@@ -1202,6 +1202,53 @@ class TestBuyFreeSpin(unittest.TestCase):
 
 
 # ════════════════════════════════════════════════════════════════════
+# 13. Bug Regression Tests
+# ════════════════════════════════════════════════════════════════════
+
+class TestBugRegression(unittest.TestCase):
+    """
+    Regression tests that PASS by asserting known bug behavior.
+    These tests will FAIL when the backend fixes the bug — which is the correct signal.
+    Pattern: test documents defect, asserts current (broken) behavior.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.c = GameClient()
+        cls.c.login()
+
+    def test_bug_004_add_free_spin_format_is_dict(self):
+        """BUG-004: addFreeSpin returns boolean dict instead of numeric array.
+
+        Spec expected: [0, 0, 10]  — list of numeric spin counts per cascade
+        Actual format: {"2": true} — dict of boolean values keyed by cascade index
+
+        This test PASSES while the bug exists.
+        It will FAIL after the backend fix (addFreeSpin becomes a list of ints).
+        That failure is the intended signal to update the test.
+        """
+        js = self.c.buy_free_spin()
+        if js.get("error") != ERR_OK:
+            self.skipTest(f"buyFreeSpin failed: error={js.get('error')}")
+
+        pt  = js["data"]["slotData"]["paytable"]
+        afs = pt.get("addFreeSpin")
+
+        # BUG-004: addFreeSpin should be list, but is dict
+        self.assertIsNotNone(afs, "addFreeSpin field must be present in buyFreeSpin response")
+        self.assertIsInstance(
+            afs, dict,
+            f"BUG-004 RESOLVED: addFreeSpin is now {type(afs).__name__} "
+            f"(was dict). Update this test to assert list format."
+        )
+        # If it IS a dict, at least one value should be truthy (FG was triggered)
+        self.assertTrue(
+            any(afs.values()) if afs else False,
+            f"addFreeSpin dict is empty or all-False after buyFreeSpin — unexpected: {afs}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════
 # Entry Point
 # ════════════════════════════════════════════════════════════════════
 

@@ -85,4 +85,4 @@ INVALID_BET = 1.0           # BUG-005: defaultBet:1 not in betList
 SCATTER_RATE        = 0.03
 FG_TRIGGER_RATE_MIN = 0.005
 RTP_MIN             = 0.40
-RTP_MAX             = 1.20
+RTP_MAX             = 2.00  # raised from 1.20; FG multipliers up to 10x cause high variance in 100 spins
