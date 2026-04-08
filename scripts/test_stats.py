@@ -22,9 +22,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 from config import (
     BASE_URL, SSO_KEY, BET, INVALID_BET,
     WILDS, GOLD_SYMBOLS, GOLD_REELS,
-    STAT_SPIN_COUNT,
+    STAT_SPIN_COUNT, REELS, ROWS,
     RTP_MIN, RTP_MAX,
     GOLDEN_RATE, BIG_JOKER_RATE, FG_TRIGGER_RATE_MIN,
+    SCATTER, SCATTER_RATE,
 )
 
 
@@ -281,6 +282,60 @@ class TestBigJokerRate(unittest.TestCase):
                                 )
         self.assertEqual(errors, [],
                          "Gold→Joker conversion failures:\n" + "\n".join(errors))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TestScatterRate  (TC-008-02)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestScatterRate(unittest.TestCase):
+    """TC-008-02: Scatter (12) appearance rate per cell should be ~SCATTER_RATE (~3%)."""
+
+    @classmethod
+    def setUpClass(cls):
+        _load_fixtures()
+        cls.spins = _spin_results
+
+    def test_scatter_rate_in_range(self):
+        """Scatter per-cell rate in initial grid must be within [1%, 8%]."""
+        scatter_cells = 0
+        total_cells   = 0
+
+        for spin in self.spins:
+            slot     = spin.get("slotData", {})
+            mg_table = slot.get("mgTable", [])
+            if not mg_table:
+                continue
+            initial = mg_table[0]
+            for reel in initial:
+                for cell in reel:
+                    total_cells += 1
+                    if abs(cell) == SCATTER:
+                        scatter_cells += 1
+
+        if total_cells == 0:
+            self.skipTest("No cells collected")
+
+        rate = scatter_cells / total_cells
+        # Allow wide tolerance (1%–8%) due to small sample; nominal ~3%
+        self.assertGreater(rate, 0.01,
+            f"Scatter rate {rate:.3f} suspiciously low — expected ~{SCATTER_RATE:.0%}")
+        self.assertLess(rate, 0.08,
+            f"Scatter rate {rate:.3f} suspiciously high — expected ~{SCATTER_RATE:.0%}")
+
+    def test_scatter_appears_at_least_once(self):
+        """Scatter symbol must appear in at least 1 initial grid across all spins."""
+        found = any(
+            abs(cell) == SCATTER
+            for spin in self.spins
+            for mg in [spin.get("slotData", {}).get("mgTable", [])]
+            if mg
+            for reel in mg[0]
+            for cell in reel
+        )
+        self.assertTrue(found,
+            f"Scatter (12) never appeared in {STAT_SPIN_COUNT} spins — "
+            "possible symbol ID mismatch or config error")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

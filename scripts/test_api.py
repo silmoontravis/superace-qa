@@ -558,6 +558,42 @@ class TestFreeGameMechanics(unittest.TestCase):
                 )
         self.assertEqual(len(errors), 0, "\n".join(errors))
 
+    def test_fg_retrigger_adds_5_spins(self):
+        """TC-005-03: FG retrigger must add exactly FG_RETRIGGER_SPINS (5) extra spins.
+
+        Strategy: run 10 buyFreeSpin calls; if any gives len(fgTable) > FG_INITIAL_SPINS,
+        that's a retrigger. Verify the extra length is a multiple of FG_RETRIGGER_SPINS.
+        If no retrigger observed, skipTest (probabilistic — ~10% per FG session).
+        """
+        retrigger_found = False
+        errors = []
+
+        c = GameClient()
+        c.login()
+        for attempt in range(10):
+            js = c.buy_free_spin()
+            if js.get("error") != ERR_OK:
+                continue
+            pt       = js["data"]["slotData"]["paytable"]
+            fg_count = len(pt.get("fgTable", []))
+
+            if fg_count > FG_INITIAL_SPINS:
+                retrigger_found = True
+                extra = fg_count - FG_INITIAL_SPINS
+                if extra % FG_RETRIGGER_SPINS != 0:
+                    errors.append(
+                        f"Attempt {attempt}: fgTable has {fg_count} spins — "
+                        f"extra={extra} is not a multiple of FG_RETRIGGER_SPINS({FG_RETRIGGER_SPINS})"
+                    )
+
+        if not retrigger_found:
+            self.skipTest(
+                "No FG retrigger observed in 10 buyFreeSpin calls — probabilistic test; "
+                "retry or increase attempt count for more coverage"
+            )
+
+        self.assertEqual(errors, [], "\n".join(errors))
+
 
 # ════════════════════════════════════════════════════════════════════
 # 7. Error Handling
