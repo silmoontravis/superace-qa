@@ -689,6 +689,41 @@ class TestBalanceDeduction(unittest.TestCase):
             self.assertGreaterEqual(slot["afterCoin"], 0,
                                     f"Spin#{i}: negative afterCoin={slot['afterCoin']}")
 
+    def test_fg_does_not_deduct_bet(self):
+        """TC-005-04: FG spins must NOT deduct bet from balance.
+
+        Strategy: buyFreeSpin runs all 10 FG spins as a single API call.
+        The correct formula is: afterCoin = prevCoin - (bet * buyRatio) + totalWin
+        If FG spins also deducted bet, the formula would show an extra -bet*10 shortfall.
+        """
+        c = GameClient()
+        c.login()
+        prev_coin = c.coin
+
+        js = c.buy_free_spin(DEFAULT_BET)
+        if js.get("error") != ERR_OK:
+            self.skipTest(f"buyFreeSpin failed: error={js.get('error')}")
+
+        slot = js["data"]["slotData"]
+        after_coin = slot.get("afterCoin", slot.get("afterCoin"))
+        total_win  = slot.get("totalWin", 0)
+
+        # Get buyRatio (POST, same as _get_buy_ratio in TestBuyFreeSpin)
+        ratio_r = c.session.post(f"{BASE_URL}/buyRatio",
+                                 params={"token": c.token})
+        buy_ratio = ratio_r.json()["data"]["buyRatio"]
+
+        cost = round(DEFAULT_BET * buy_ratio, 2)
+        expected = round(prev_coin - cost + total_win, 2)
+        actual   = round(float(after_coin), 2)
+
+        self.assertAlmostEqual(
+            actual, expected, delta=self.BALANCE_TOLERANCE,
+            msg=f"TC-005-04 FAIL: afterCoin={actual} != prevCoin({prev_coin}) "
+                f"- cost({cost}) + win({total_win}) = {expected}. "
+                f"Possible extra per-spin bet deduction."
+        )
+
 
 # ════════════════════════════════════════════════════════════════════
 # 9. MG Completes Before FG  (TC-005-06)
@@ -773,8 +808,17 @@ class TestGoldToJokerConversion(unittest.TestCase):
     def setUpClass(cls):
         cls.c = GameClient()
         cls.c.login()
-        # Need multi-cascade spins with gold involved — 200 spins for reliable gold events
+        # 200 spins + 3 buyFreeSpin FG rounds for more gold-elimination events
         cls.spins = spin_n(cls.c, 200)
+        for _ in range(3):
+            bfs = cls.c.buy_free_spin()
+            if bfs.get("error") == 0:
+                fg_slot = bfs["data"]["slotData"]
+                cls.spins.append(fg_slot)
+                for fg_round in fg_slot["paytable"].get("fgTable", []):
+                    if len(fg_round) >= 2:
+                        synthetic = {"paytable": {"mgTable": fg_round, "fgTable": []}}
+                        cls.spins.append(synthetic)
         # Pre-filter spins with at least 2 cascades (consecutive grids)
         cls.multi_cascade = [
             s for s in cls.spins
@@ -845,8 +889,8 @@ class TestGoldToJokerConversion(unittest.TestCase):
                     elif v == LITTLE_JOKER: little += 1
 
         total = big + little
-        if total < 10:
-            self.skipTest(f"Only {total} gold conversion events — need ≥10 for distribution test")
+        if total < 20:
+            self.skipTest(f"Only {total} gold conversion events — need >=20 for distribution test")
 
         big_rate = big / total
         # Expected ~15% BigJoker (BIG_JOKER_RATE=0.15); accept 2%–45% with small samples
@@ -874,7 +918,19 @@ class TestBigJokerCopy(unittest.TestCase):
     def setUpClass(cls):
         cls.c = GameClient()
         cls.c.login()
-        cls.spins = spin_n(cls.c, 120)  # increased for better BigJoker event coverage
+        cls.spins = spin_n(cls.c, 120)  # 120 regular spins
+        # Supplement with buyFreeSpin FG cascade data (5 calls) — FG rounds have
+        # ~10 spins each with multiplied wins, increasing multi-cascade boards
+        # and gold-elimination → BigJoker conversion events.
+        for _ in range(5):
+            bfs = cls.c.buy_free_spin()
+            if bfs.get("error") == 0:
+                fg_slot = bfs["data"]["slotData"]
+                cls.spins.append(fg_slot)
+                for fg_round in fg_slot["paytable"].get("fgTable", []):
+                    if len(fg_round) >= 2:
+                        synthetic = {"paytable": {"mgTable": fg_round, "fgTable": []}}
+                        cls.spins.append(synthetic)
         cls.multi_cascade = [
             s for s in cls.spins
             if len(s["paytable"]["mgTable"]) >= 2

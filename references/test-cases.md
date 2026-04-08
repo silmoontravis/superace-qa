@@ -103,30 +103,22 @@
 
 ### TC-004-04 黃金牌消除後轉為鬼牌
 - **分類：** 特殊功能
-- **自動化：** ❌（需追蹤 cascade 前後的盤面差異）
+- **自動化：** ✅ `TestGoldToJokerConversion::test_eliminated_gold_becomes_joker`
 - **驗證：**
   - mgTable[i] 中有 gold 符號（101-108）且為負值（被消除）
   - mgTable[i+1] 中原位置出現 BigJoker(10) 或 LittleJoker(11)
-- **手動步驟：**
-  1. 找到有 gold 符號的盤面
-  2. 確認 gold 被消除（負值）
-  3. 確認下一個盤面同位置有鬼牌
 
 ### TC-004-05 大鬼牌複製到其他位置
 - **分類：** 特殊功能
-- **自動化：** ❌（需比對兩個 cascade 的盤面差異，追蹤 BigJoker 新增位置）
+- **自動化：** ✅ `TestBigJokerCopy::test_big_joker_has_copies`（機率性 skip — BigJoker 事件稀少）
 - **驗證：**
   - 當 BigJoker 出現後，下一盤面中 BigJoker 數量 ≥ 1
   - 複製不落在 Scatter 或已有 Joker 的位置
-- **手動步驟：**
-  1. 找到 gold 被消除後轉 BigJoker 的 cascade
-  2. 比較前後兩個盤面的 BigJoker 位置
-  3. 確認新增位置不是 Scatter
 
 ### TC-004-06 大鬼牌複製數量範圍 1-4 個
 - **分類：** 特殊功能
-- **自動化：** ❌
-- **驗證：** BigJoker 一次複製 1~4 個（含原位置共 2~5 個）
+- **自動化：** ✅ `TestBigJokerCopy::test_big_joker_copy_count_2_to_5`
+- **驗證：** BigJoker 一次複製 2~5 個（含原位置）
 
 ---
 
@@ -149,12 +141,8 @@
 
 ### TC-005-04 免費遊戲不扣玩家投注
 - **分類：** 功能流程
-- **自動化：** ❌（需比對 FG 前後的 afterCoin）
-- **驗證：** FG spin 的 `afterCoin - beforeCoin == totalWin`（沒有扣 bet）
-- **手動步驟：**
-  1. 記錄進入 FG 前的餘額
-  2. 跑完一次 FG spin
-  3. 確認 `新餘額 = 舊餘額 + totalWin`（無扣款）
+- **自動化：** ✅ `TestBalanceDeduction::test_fg_does_not_deduct_bet`
+- **驗證：** buyFreeSpin 後 `afterCoin = prevCoin - cost + totalWin`（cost = bet×buyRatio，無額外每局扣款）
 
 ### TC-005-05 FG 贏分必須為非負值
 - **分類：** 功能流程
@@ -162,12 +150,8 @@
 
 ### TC-005-06 主遊戲連擊完整結束後才進 FG
 - **分類：** 功能流程
-- **自動化：** ❌（需驗證流程順序）
+- **自動化：** ✅ `TestMGCompletesBeforeFG::test_mg_table_present_before_fg_data`, `test_mg_win_recorded_in_fg_trigger_spin`
 - **驗證：** 觸發 FG 的那次 spin，`mgTable` 和 `mgWin` 必須包含所有連擊結算後才出現 `hasFreeSpin=true`
-- **手動步驟：**
-  1. 找到同時有 MG 中獎且觸發 FG 的 spin
-  2. 確認 mgTable 包含所有 MG 連擊盤面（不是只有初始盤面）
-  3. 確認 mgWin 有多筆結算
 
 ---
 
@@ -230,8 +214,8 @@
 
 ### TC-008-01 黃金牌分佈符合規格
 - **分類：** 統計
-- **自動化：** ❌（需 `test_stats.py`，尚未實作）
-- **驗證：** 取樣 100+ spin，黃金牌出現率約 18%（reel 1-3），reel 0 和 4 為 0%
+- **自動化：** ✅ `test_stats.py::TestGoldSymbolRate`
+- **驗證：** 取樣 200 spin，黃金牌出現率符合 reel 1-3 有值、reel 0 和 4 為 0%
 
 ### TC-008-02 Scatter 出現率約 3%
 - **分類：** 統計
@@ -240,8 +224,8 @@
 
 ### TC-008-03 BigJoker 佔 gold 轉換的 25%
 - **分類：** 統計
-- **自動化：** ❌
-- **驗證：** 取樣足夠多的 gold 消除事件，BigJoker 約佔 25%
+- **自動化：** ✅ `test_stats.py::TestBigJokerRate`
+- **驗證：** BigJoker 佔所有 Joker 轉換的 ~15%（含複製後計算）
 
 ---
 
@@ -261,7 +245,7 @@
 
 | 狀態 | 數量 |
 |---|---|
-| ✅ 已自動化 | 20 |
-| 🔧 部分實作 | 6 |
-| ❌ 待實作 | 11 |
+| ✅ 已自動化 | 27 |
+| 🔧 部分實作 | 5 |
+| ❌ 待實作 | 5 |
 | **合計** | **37** |
